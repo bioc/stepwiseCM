@@ -72,6 +72,7 @@ Here, we choose to use the {\tt RF} option for clinical data and {\tt plsrf\_x} 
 
 <<chunk2, eval=TRUE, echo=TRUE, results=hide>>=
 # gain the prediction labels of the training set
+set.seed(123L)
 data(CNS)
 attach(CNS)
 #Note that columns of the train set should corresponding the sample and rows
