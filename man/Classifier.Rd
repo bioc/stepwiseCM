@@ -1,52 +1,47 @@
 \name{Classifier}
 \alias{Classifier}
 \title{
-A function to predict the class labels of the test set.
+A function to perform classification task.
 }
 
 \description{
-Given the training set and the type of classification algorithm, this function constructs the classification model based on the training set and predict the class labels of the test set.
+Given the set of samples for training and the type of classification algorithm, this function constructs the classifier using the training set, and predicts the class labels of the test set using the trained classifier.
 }
 
 \usage{
-Classifier(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1", 
+Classifier(train, test = NULL, train.label, type = c("TSP", "GLM", "GLM_L1", 
            "GLM_L2", "PAM", "SVM", "plsrf_x", "plsrf_x_pv", "RF"), 
-           CVtype = c("loocv", "k-fold"), outerkfold = 5, innerkfold = 5, 
-           featurenames = NULL)
+           CVtype = c("loocv", "k-fold"), outerkfold = 5, innerkfold = 5)
 }
 
 \arguments{
   \item{train}{
-A data frame or matrix of containing predictors for the training set, where columns correspond to samples and rows to features.
+An object of class \code{\link{ExpressionSet}} or data frame or matrix contains predictors for the training set, where columns correspond to samples and rows to features.
 }
   \item{test}{
-A data frame or matrix containing predictors for the test set (optional), where columns correspond to samples and rows to features.
+An object of class \code{\link{ExpressionSet}} or data frame or matrix contains predictors for the test set (optional), where columns correspond to samples and rows to features.
 }
   \item{train.label}{
-A vector of the class labels (0 or 1) of the training set. NOTE: class labels should be numerical not factor. 
+A numeric vector contains the actual class labels (0 or 1) of the training set. NOTE: class labels should be numerical not factor. 
 }
   \item{type}{
-Type of classification algorithms. Currently 9 different types of algorithm are available. They are: top scoring pair (TSP), logistic regression (GLM), GLM with L1 (lasso) penalty, GLM with L2 (ridge) penalty, prediction analysis for microarray (PAM), support vector machine (SVM), random forest method after partial least square dimension reduction (plsrf_x), random forest method after partial least square dimension reduction plus prevalidation (plsrf_x_pv), random forest (RF). NOTE: TSP, PAM, plsrf_x and plsrf_x_pv algorithms does not work with clinical data.
+Type of classification algorithms used. Currently 9 well-known algorithm are available for user the choose from. They are: top scoring pair (TSP), logistic regression (GLM), GLM with L1 (lasso) penalty, GLM with L2 (ridge) penalty, prediction analysis for microarray (PAM), support vector machine (SVM), Random Forest combined with partial least square dimension reduction (plsrf_x), Random Forest combined with partial least square dimension reduction plus pre-validation (plsrf_x_pv), Random Forest (RF). NOTE: "TSP", "PAM", "plsrf_x" and "plsrf_x_pv"  are exclusively designed for high-dimensional data.
 }
   \item{CVtype}{
-Cross validation type. 
+Cross-validation type to obtain predicted labels of the training set. Must be either k-fold cross-validation (k-fold), or leave-one-out-cross-validation (loocv).
 }
   \item{outerkfold}{
-Number of cross validation used in the training phase.
+Number of cross-validation used in the training phase.
 }
   \item{innerkfold}{
-Number of cross validation used to estimate the model parameters.
-}
-  \item{featurenames}{
-Feature names in molecular data (e.g. gene or probe names). If given, function also produces name of the selected feature during the training and test phases. Feature selection only works with "TSP", "GLM_L1" and "GLM_L2" algorithms. "RF" provides feature importance.
+Number of cross validation used to estimate the model parameters. E.g. penalty parameter in "GLM_L1".
 }
 }
 
-\value{A list object \emph{Pred} which contains following components:
+\value{A list object contains following components:
   \item{P.train}{predicted class labels of the training set.}
   \item{P.test}{predicted class labels of the test set if the test set is given.}
-  \item{selfeatname_tr}{A list object, size of \emph{outerkfold}, containing the name of the selected features during the training phase if the \emph{featurenames} is given.}
-  \item{selfeatname_te}{A list object containing the name of the selected features during the test phase if the \emph{test} and \emph{featurenames} are given.}
+
 }
 
 \references{
@@ -58,7 +53,7 @@ Anne-Laure Boulesteix and Christine Porzelius and Martin Daumer(2008). Microarra
 \author{
 Askar Obulkasim
     
-Maintainer: Askar Obulkasim <askar.wubulikasimu@vumc.nl>
+Maintainer: Askar Obulkasim <askar703@gmail.com>
 }
 
 

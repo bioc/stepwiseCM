@@ -1,53 +1,51 @@
 \name{RS.generator}
 \alias{RS.generator}
 \title{
-A function to generate reclassification score.
+A function to generate the reclassification score.
 }
 
 \description{
-A function to calculates the reclassification score (RS) using both clinical and molecular data.
+This function calculates the reclassification score (RS) for the test set. See details.
 }
 
 \usage{
-RS.generator(pred.cli, pred.gen, train.label, prox.gen, prox.cli, 
+RS.generator(pred1.train, pred2.train, train.label, prox1, prox2, 
              type = c("rank", "proximity", "both"))
 }
 
 \arguments{
-  \item{pred.cli}{
-A vector containing the predicted labels of training set from clinical data. 
+  \item{pred1.train}{
+A numeric vector contains the predicted class labels of the training set from the data set used at the first stage. 
 }
-  \item{pred.gen}{
-A vector containing the predicted labels of training set from genomic data.
+  \item{pred2.train}{
+A numeric vector contains the predicted class labels of the training set from the data set used at the second stage.
 }
   \item{train.label}{
-A vector of the class labels (0 or 1) of the training set. NOTE: response values should be numerical not factor.
+A vector of actual class labels (0 or 1) of the training set. Should be numerical not factor.
 }
-  \item{prox.gen}{
-A square matrix, size of ncol(train.gen), contains the proximity values between training set in the genomic data space.
+  \item{prox1}{
+A rectangular matrix contains the proximity values between the test set (rows) and the training set (columns) obtained from the data set used at the first stage.
 }
-
-  \item{prox.cli}{
-A matrix, size of ncol(test.cli) by ncol(train.cli), contains the proximity values between the test set and the training set in the clinical data space.
+  \item{prox2}{
+A square matrix contains the proximity values between training set obtained from the data set used at the second stage.
 }
-
   \item{type}{
 Which values are used to construct the reclassification score (RS)? There are three options available: \emph{proximity}, \emph{rank} and \emph{both}. If set to proximity, RS will be calculated directly from the proximity value. If set to rank, RS calculate from the rank of proximity values (more robust). If set to \emph{both}, both of them will be calculated. Default is \emph{rank}.
 }
 }
 
 \details{
-For each test sample, RS is calculated using the given classification results from clinical and genomic data. Algorithm project each test sample onto the clinical space check its neighborhood, also tries to gain some information about this test samples "pseudo" neighbors in the genomic space by the indirect mapping. If algorithm finds that the location of this test samples in the clinical space are more "safe" (more neighbors are correctly classified) and the location in the genomic space is surrounded by wrongly classified samples, then it will give this test sample high RS score and vice versa. After obtaining the RS, user can order them in descending order and pass the top ranked certain portion (decided by user) of samples to genomic data to classify.
+For each test sample, RS is calculated using the given classification results from two data sets. Algorithm project each test sample onto the first stage data space to observe its neighbourhood and tries to gain some information about the test sample's "pseudo" neighbourhood in the second stage data space with the help of indirect mapping. If algorithm finds that the location of this test samples in the first stage data space are more "safe" (more neighbours are correctly classified) and the location in the second stage data space is surrounded by wrongly classified samples, then it gives this test sample lower RS score and vice versa. After obtaining the RS, user may order them in descending order and classify the top ranked certain portion of samples with the second stage data type.
 }
 
 \value{
-If the "type" set to "rank" ("proximity"), then RS will be a vector of RS calculated from the ranking (proximity) approach , otherwise RS will be a matrix of RS, with two columns and size of rows equal number of test samples, calculated using the both approaches. 
+If the argument "type" set to "rank" ("proximity"), function returns a vector of RS calculated by rank (proximity) based approach. If set to "both" returns a matrix of two columns corresponds to the RS obtained by rank and proximity based approaches. 
 }
 
 \author{
 Askar Obulkasim
     
-Maintainer: Askar Obulkasim <askar.wubulikasimu@vumc.nl>
+Maintainer: Askar Obulkasim <askar703@gmail.com>
 
 }
 
@@ -61,8 +59,9 @@ pred.cli <- Classifier(train = train.cli, train.label = train.label, type = "GLM
             CVtype = "k-fold", outerkfold = 2, innerkfold = 2)
 pred.gen <- Classifier(train = train.gen, train.label = train.label, type = "GLM_L1", 
             CVtype = "k-fold", outerkfold = 2, innerkfold = 2)
-prox <- Proximity(train.cli, train.label, test.cli, train.gen, N = 2)
-RS.generator(pred.cli$P.train, pred.gen$P.train, train.label, prox$Prox.gen, 
-             prox$Prox.cli, type = "both")
+prox1 <- Proximity(train.cli, train.label, test.cli, N = 2)$prox.test
+prox2 <- Proximity(train.gen, train.label, NULL, N = 2)$prox.train
+RS <- RS.generator(pred.cli$P.train, pred.gen$P.train, train.label, prox1, 
+             prox2, type = "both")
 }            
 

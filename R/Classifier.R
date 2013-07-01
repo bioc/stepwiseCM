@@ -1,10 +1,15 @@
 Classifier <-
-function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1", 
+function(train, test = NULL, train.label, type = c("TSP", "GLM", "GLM_L1", 
   "GLM_L2", "PAM", "SVM", "plsrf_x", "plsrf_x_pv", "RF"), CVtype = c("loocv",
-  "k-fold"), outerkfold = 5, innerkfold = 5, featurenames = NULL)
+  "k-fold"), outerkfold = 5, innerkfold = 5)
 {
-
-   if (length(table(train.label)) != 2)
+    if (class(train) == "ExpressionSet" | class(train) == "eSet") {
+       train <- exprs(train)
+    }
+    if (!is.null(test) & (class(test) == "ExpressionSet" | class(test) == "eSet")) {
+       test <- exprs(test)
+    }  
+    if (length(table(train.label)) != 2)
        stop("Classifier was desined only for binary class problem")
     if (missing(type))
        stop("Classification algorithm type should be specified")
@@ -14,9 +19,11 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
        if (any(is.na(test)) & type == "PAM")
           stop("PAM does not accept missing values!")
     }
-    if(CVtype == "loocv"){
+    if (CVtype == "loocv") {
        outerkfold = ncol(train)
     }
+    if (!any(type %in% c("TSP", "GLM", "GLM_L1", "GLM_L2", "PAM", "SVM", "plsrf_x", "plsrf_x_pv", "RF")))
+       stop("Selected classifier does not exist")
     A  <- split(sample(seq(ncol(train))), rep(1:outerkfold, 
                length = ncol(train)))
     P.tr <- c()
@@ -26,38 +33,22 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
     type <- match.arg(type)    
     Pred <- switch(type, TSP = 
             {
-              selfeatname_tr <- list()
               if (length(A) != 1) {
                 for(i in 1:length(A)) {
                    index <- A[[i]]
                    I <- c(I,index) 
-                   #cat("left-out sample(s):", index, "\n")
                    train.tsp <- tspcalc(train[, -index], train.label[-index])
                    P.tr <- c(P.tr, as.numeric(predict(train.tsp, 
                              as.matrix(train[, index]))))
-                   if (!is.null(featurenames)) {
-                      selfeatname_tr <- c(selfeatname_tr, 
-                                        list(featurenames[train.tsp$index]))
-                   } else {
-                      selfeatname_tr <- NULL
-                   }
                 }
                 P.tr <- P.tr[order(I)]
               }
               if (!is.null(test)) {
-                  selfeatname_te <- list()
                   train.tsp <- tspcalc(train, train.label)
                   P.te <- as.numeric(predict(train.tsp, test))
-                  if (!is.null(featurenames)) {
-                     selfeatname_te <- c(selfeatname_te, 
-                                       list(featurenames[train.tsp$index]))
-                  } else {
-                     selfeatname_te <- NULL
-                  }
-                  Pred <- list(P.train = P.tr, P.test = P.te, selfeatname_tr = 
-                              selfeatname_tr, selfeatname_te = selfeatname_te)
+                  Pred <- list(P.train = P.tr, P.test = P.te)
               } else {
-                  Pred <- list(P.train = P.tr, selfeatname_tr = selfeatname_tr)
+                  Pred <- list(P.train = P.tr)
               }
 
             }, GLM = 
@@ -66,7 +57,6 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                   for(i in 1:length(A)) {
                      index <- A[[i]]
                      I <- c(I, index)
-                     #cat("left-out sample(s):", index, "\n")
                      cgh.glm.cv <- cv.glmpath(x = t(train[, -index]), y = 
                                    train.label[-index], family = binomial, 
                                    nfold = innerkfold, mode = "lambda", 
@@ -101,16 +91,14 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                            ncol(cgh.pred)], 0))
                    Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                   Pred <- P.tr
+                   Pred <- list(P.train = P.tr)
                }
             }, GLM_L1 =
             {
-               selfeatname_tr <- list()
                if (length(A) != 1) {
                   for(i in 1:length(A)) { 
                      index <- A[[i]]
                      I <- c(I,index) 
-                     #cat("left-out sample(s):", index, "\n")
                      tl <- factor(train.label[-index])
                      datfr <- data.frame(t(train[, -index]))
                      opt <- optL1(tl, penalized = datfr, fold = innerkfold,
@@ -126,18 +114,11 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                      datapred <- data.frame(t(train[, index]))
                      names(datapred) <- names(datfr)
                      predresp <- round(predict(pen, datapred), 0)
-                     P.tr <- c(P.tr,predresp)
-                     if(!is.null(featurenames)) {
-                        selfeatname_tr <- c(selfeatname_tr, 
-                                          list(featurenames[whichsel])) 
-                     } else {
-                        selfeatname_tr <- NULL
-                     }
+                     P.tr <- c(P.tr, as.vector(predresp))
                   }   
                   P.tr <- P.tr[order(I)]  
                }
                if (!is.null(test)) {
-                  selfeatname_te <- list()
                   tl <- factor(train.label)
                   datfr <- data.frame(t(train))
                   test <- data.frame(t(test))
@@ -151,27 +132,19 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                             trace = FALSE)
                   }
                   predresp <- round(predict(pen, test))
-                  P.te <- predresp
+                  P.te <- as.vector(predresp)
                   whichsel <- which(pen@penalized !=0)
                   coeff <- pen@penalized[whichsel]
-                  if (!is.null(featurenames)) {
-                     selfeatname_te <- featurenames[whichsel] 
-                  } else {
-                     selfeatname_te <- NULL
-                  }
-                  Pred <- list(P.train = P.tr, P.test = P.te, selfeatname_tr = 
-                          selfeatname_tr, selfeatname_te = selfeatname_te)
+                  Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                  Pred <- list(P.train = P.tr, selfeatname_tr = selfeatname_tr)
+                  Pred <- list(P.train = P.tr)
                }
             }, GLM_L2 =
             {
-               selfeatname_tr <- list()
                if (length(A) != 1) {
                   for(i in 1:length(A)) { 
                      index <- A[[i]]
                      I <- c(I,index) 
-                     #cat("left-out sample(s):", index, "\n")
                      tl <- factor(train.label[-index])
                      datfr <- data.frame(t(train[, -index]))
                      opt <- optL2(tl, penalized = datfr, fold = innerkfold, 
@@ -187,18 +160,11 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                      datapred <- data.frame(t(train[, index]))
                      names(datapred) <- names(datfr)
                      predresp <- round(predict(pen, datapred))
-                     P.tr <- c(P.tr,predresp)
-                     if(!is.null(featurenames)) {
-                        selfeatname_tr <- c(selfeatname_tr, 
-                                          list(featurenames[whichsel])) 
-                     } else {
-                        selfeatname_tr <- NULL
-                     }
+                     P.tr <- c(P.tr, as.vector(predresp))
                   }   
                   P.tr <- P.tr[order(I)]  
                }
                if (!is.null(test)) {
-                  selfeatname_te <- list()
                   tl <- factor(train.label)
                   datfr <- data.frame(t(train))
                   test <- data.frame(t(test))
@@ -212,18 +178,12 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                             1e-30, trace = FALSE)
                   }
                   predresp <- round(predict(pen, test))
-                  P.te <- predresp
+                  P.te <- as.vector(predresp)
                   whichsel <- which(pen@penalized !=0) 
                   coeff <- pen@penalized[whichsel]
-                  if (!is.null(featurenames)) {
-                     selfeatname_te <- featurenames[whichsel] 
-                  } else {
-                     selfeatname_te <- NULL
-                  }
-                  Pred <- list(P.train = P.tr, P.test = P.te, selfeatname_tr =
-                          selfeatname_tr, selfeatname_te = selfeatname_te)
+                  Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                  Pred <- list(P.train = P.tr, selfeatname_tr = selfeatname_tr)
+                  Pred <- list(P.train = P.tr)
                }          
             }, PAM = 
             {
@@ -232,15 +192,10 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                } else {
                   geneID <- as.character(1:nrow(train))
                }
-               if (!is.null(featurenames)) {
-                  geneID <- featurenames
-               }
                train <- as.matrix(train)
-               selfeatname_tr <- list()
                if(length(A) != 1) {
                   for(i in 1:length(A)) {
                      index <- A[[i]]
-                     #cat("left-out sample(s):", index, "\n")
                      I <- c(I, index)
                      subset.list <- list(x = train[, -index], y = 
                                     factor(train.label[-index]), 
@@ -273,11 +228,6 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                                     threshold = threshold.chosen)
                                     whichsel = pamr.listgenes(subset.train, 
                                     subset.list, threshold = threshold.chosen)
-                     if (!is.null(featurenames)) {
-                        selfeatname_tr <- featurenames[whichsel]
-                     } else {
-                        selfeatname_tr <- NULL
-                     }
                      P.tr <- c(P.tr, as.numeric(subset.pred)-1)
                   }
                   P.tr <- P.tr[order(I)]
@@ -314,22 +264,15 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                                   whichsel = pamr.listgenes(subset.train, 
                                   subset.list, threshold = threshold.chosen)
                    P.te <- c(P.te, as.numeric(subset.pred)-1)
-                   if (!is.null(featurenames)) {
-                     selfeatname_te <- featurenames[whichsel] 
-                  } else {
-                     selfeatname_te <- NULL
-                  }
-                  Pred <- list(P.train = P.tr, P.test = P.te, selfeatname_tr = 
-                          selfeatname_tr, selfeatname_te = selfeatname_te)
+                   Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                   Pred <- list(P.train = P.tr, selfeatname_tr = selfeatname_tr)
+                   Pred <- list(P.train = P.tr)
                }
             }, SVM =
             {
                if(length(A) != 1) {
                   for(i in 1:length(A)) {
                      index <- A[[i]]
-                     #cat("left-out sample(s):", index, "\n")
                      I <- c(I,index)
                      x_sub <- t(train[, -index])
                      y_sub <- as.factor(train.label[-index])
@@ -364,7 +307,7 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                   P.te <- as.numeric(subset_predicted)-1
                   Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                  Pred <- P.tr
+                  Pred <- list(P.train = P.tr)
                }
             }, plsrf_x =
             {
@@ -374,7 +317,6 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                   for(i in 1:length(A)) {
                      index <- A[[i]]
                      I <- c(I, index)
-                     #cat("left-out sample(s):", index, "\n")
                      if (CVtype != "loocv") {
                         my.prediction <- plsrf_x(Xlearn = x[-index, ], 
                                          Ylearn = y[-index], Xtest = x[index, ],
@@ -400,7 +342,7 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                   P.te <- my.prediction$prediction
                   Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                  Pred <- P.tr
+                  Pred <- list(P.train = P.tr)
                }
             }, plsrf_x_pv =
             {
@@ -409,7 +351,6 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                   y <- train.label
                   for(i in 1:length(A)) {
                      index <- A[[i]]
-                     #cat("left-out sample(s):", index, "\n")
                      I <- c(I, index)
                      if (CVtype != "loocv") {
                         my.prediction <- plsrf_x_pv(Xlearn = x[-index, ], 
@@ -436,44 +377,30 @@ function(train, test = c(), train.label, type = c("TSP", "GLM", "GLM_L1",
                   P.te <- my.prediction$prediction
                   Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                  Pred <- P.tr
+                  Pred <- list(P.train = P.tr)
                }
             }, RF =
             {
-               selfeatname_tr <- list()
                if(length(A) != 1) {
                   for(i in 1:length(A)) {
                      index <- A[[i]]
-                     #cat("left-out sample(s):", index, "\n")
                      I <- c(I, index)
                      rf <- randomForest(x = t(train[, -index]),y = 
                            as.factor(train.label[-index]), xtest = 
                            t(train[, index]), ytest = NULL, ntree = 2000, 
-                           importance = !is.null(featurenames), proximity = FALSE)
+                           importance = FALSE, proximity = FALSE)
                      P.tr <- c(P.tr, as.numeric(as.vector(rf$test$predicted)))
-                     if(!is.null(featurenames)) { 
-                        selfeatname_tr <- c(selfeatname_tr, list(rf$importance))
-                     } else {
-                        selfeatname_tr <- NULL
-                     }
                   }
                   P.tr <- P.tr[order(I)]
                }
                if (!is.null(test)) {
-                  selfeatname_te <- list()
                   rf <- randomForest(x = t(train),y = as.factor(train.label),
                         xtest = t(test), ytest = NULL, ntree = 2000,
-                        importance = !is.null(featurenames), proximity = FALSE)
-                  if (!is.null(featurenames)) {
-                     selfeatname_te <- c(selfeatname_te, list(rf$importance))
-                  } else {
-                     selfeatname_te <- NULL
-                  }
+                        importance = FALSE, proximity = FALSE)
                   P.te <- as.numeric(as.vector(rf$test$predicted))
-                  Pred <- list(P.train = P.tr, selfeatname_tr = selfeatname_tr, 
-                          P.test = P.te, selfeatname_te = selfeatname_te)
+                  Pred <- list(P.train = P.tr, P.test = P.te)
                } else {
-                  Pred <- list(P.train = P.tr, selfeatname_tr = selfeatname_tr)
+                  Pred <- list(P.train = P.tr)
                }
             })
 

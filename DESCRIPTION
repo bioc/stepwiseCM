@@ -1,14 +1,14 @@
 Package: stepwiseCM
 Type: Package
-Title: Stepwise Classification of Cancer Samples using Clinical and
-        Molecular Data
-Version: 1.7.0
-Date: 2011-05-16
+Title: Stepwise Classification of Cancer Samples using High-dimensional Data Sets
+Version: 1.7.1
+Date: 2013-06-19
 Author: Askar Obulkasim
 Depends: R (>= 2.14), randomForest, MAclinical, tspair, pamr, snowfall,
-        glmpath, penalized, e1071
-Maintainer: Askar Obulkasim <askar.wubulikasimu@vumc.nl>
-Description: Stepwise classification of cancer samples using both clinical and 
-                 molecular data
-License: GPL (http://www.gnu.org/copyleft/gpl.html)
+        glmpath, penalized, e1071, Biobase
+Maintainer: Askar Obulkasim <askar703@gmail.com>
+Description: Stepwise classification of cancer samples using multiple data sets. This package implements the classification strategy using two heterogeneous data sets without actually combining them. Package uses the data type for which full measurements are available at the first stage, and the data type for which only partial measurements are available at the second stage. For incoming new samples package quantifies how much improvement will be obtained if covariates of new samples for the data types at the second stage are measured. This packages suits for the application where study goal is not only obtain high classification accuracy, but also requires economically cheap classifier.
+License: GPL (>2)
 Packaged: 2011-09-30 08:03:35 UTC; askar.wubulikasimu
+biocViews: Classification, Microarray, Bioinformatics, Integration
+

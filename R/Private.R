@@ -1,14 +1,15 @@
 ### internal function used to calculate the proximity matrix with multicores
-.Wrapper.Proximity <- function(i, train.cli, test.cli, train.gen, train.label)
+.Wrapper.Proximity <- function(i, train, train.label, test)
 {
-   RF.cli <- randomForest(x = t(train.cli), y = factor(train.label), xtest = t(test.cli),
+   if (!is.null(test)) {
+      RF <- randomForest(x = t(train), y = factor(train.label), xtest = t(test),
                ytest = NULL, ntree = 1000, importance = FALSE, proximity = TRUE)
-   RF.gen <- randomForest(x = t(train.gen), y = factor(train.label), xtest = NULL,
-               ytest = NULL, ntree = 1000, importance = FALSE, proximity = TRUE)
+   } else {
+      RF <- randomForest(x = t(train), y = factor(train.label), xtest = test,
+               ytest = NULL, ntree = 1000, importance = FALSE, proximity = TRUE) 
+   }
    
-   Prox=rbind(RF.cli$test$proximity[, (nrow(RF.cli$test$proximity) + 1):ncol(RF.cli$test$proximity)],
-              RF.gen$proximity)
-  return(Prox)
+  return(RF)
 
 }
 
@@ -16,17 +17,13 @@
 
 ### internal function used to predict class labels for the training samples with multicore
 
-.Wrapper.Classifier <- function(i, train, train.label, type, A, innerkfold, featurenames = NULL)
+.Wrapper.Classifier <- function(i, type, A, train, train.label, innerkfold)
 {
     if(type == "TSP") {
           index <- A[[i]]
           train.tsp <- tspcalc(train[, -index], train.label[-index])
           P.tr <- as.numeric(predict(train.tsp, as.matrix(train[, index]))) 
-          if (!is.null(featurenames)) {
-             selfeatname_tr <- c(selfeatname_tr, list(featurenames[train.tsp$index]))
-          } else {
-             selfeatname_tr <- NULL
-          }
+
     }  
     if(type == "GLM") {
           index <- A[[i]]
@@ -51,12 +48,8 @@
           whichsel <- which(pen@penalized !=0)
           datapred <- data.frame(t(train[, index]))
           names(datapred) <- names(datfr)
-          P.tr <- round(predict(pen, datapred))
-          if (!is.null(featurenames)) {
-             selfeatname_tr <- c(selfeatname_tr, list(featurenames[whichsel])) 
-          } else {
-             selfeatname_tr <- NULL
-          }
+          P.tr <- as.vector(round(predict(pen, datapred)))
+
     }
     if(type == "GLM_L2") {
           index <- A[[i]]
@@ -71,21 +64,14 @@
           whichsel <- which(pen@penalized !=0)
           datapred <- data.frame(t(train[, index]))
           names(datapred) <- names(datfr)
-          P.tr <- round(predict(pen, datapred))
-          if (!is.null(featurenames)) {
-             selfeatname_tr <- c(selfeatname_tr, list(featurenames[whichsel])) 
-          } else {
-             selfeatname_tr <- NULL
-          }
+          P.tr <- as.vector(round(predict(pen, datapred)))
+
     }
     if(type == "PAM") {
           if (!is.null(rownames(train))) {
              geneID <- rownames(train)
           } else {
              geneID <- as.character(1:nrow(train))
-          }
-          if (!is.null(featurenames)) {
-             geneID <- featurenames
           }
           index <- A[[i]]
           subset.list <- list(x = train[, -index], y = factor(train.label[-index]), geneid = geneID, genenames = geneID)
@@ -102,13 +88,8 @@
           threshold.chosen <- (subset.train$threshold)[withinmarge[length(withinmarge)]]
           subset.test <- as.matrix(train[, index])
           subset.pred <- pamr.predict(subset.train, subset.test, threshold = threshold.chosen)
-          P.tr <- as.numeric(subset.pred)-1
-          whichsel = pamr.listgenes(subset.train, subset.list, threshold = threshold.chosen)
-          if (!is.null(featurenames)) {
-             selfeatname_tr <- featurenames[whichsel]
-          } else {
-             selfeatname_tr <- NULL
-          }
+          P.tr <- as.numeric(subset.pred) - 1
+
     }                 
     if(type == "SVM") {
           index <- A[[i]]
@@ -120,7 +101,7 @@
           subset.train <- svm(x = x_sub, y = y_sub, kernel = "radial", gamma = tuned$best.parameters$gamma, 
                   cost = tuned$best.parameters$cost, class.weights = wts)
           subset_predicted <- predict(subset.train, t(train[, index]))
-          P.tr <- as.numeric(subset_predicted)-1
+          P.tr <- as.numeric(subset_predicted) - 1
     }                     
     if(type == "plsrf_x") {
           x <- t(train)
@@ -154,17 +135,10 @@
      if(type == "RF") {
           index <- A[[i]]
           rf <- randomForest(x = t(train[, -index]),y = as.factor(train.label[-index]), xtest = t(train[, index]),
-                 ytest = NULL, ntree = 2000, importance = !is.null(featurenames), proximity = FALSE)
+                 ytest = NULL, ntree = 2000, importance = FALSE, proximity = FALSE)
           P.tr <- as.numeric(as.vector(rf$test$predicted))
-          if (!is.null(featurenames)) { 
-             selfeatname_tr <- c(selfeatname_tr, list(rf$importance))
-          } else {
-             selfeatname_tr <- NULL
-          }
+
      }          
-     if (!is.null(featurenames)) {         
-        return(list(P.train = P.tr, selfeatname_tr = selfeatname_tr))
-     } else {
-        return(list(P.train = P.tr))
-     }      
+   return(P.tr)
+           
 } 
