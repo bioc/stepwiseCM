@@ -2,7 +2,7 @@ Package: stepwiseCM
 Type: Package
 Title: Stepwise Classification of Cancer Samples using High-dimensional
         Data Sets
-Version: 1.24.0
+Version: 1.25.0
 Date: 2013-06-19
 Author: Askar Obulkasim
 Depends: R (>= 2.14), randomForest, MAclinical, tspair, pamr, snowfall,
